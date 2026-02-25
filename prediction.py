@@ -1,58 +1,49 @@
 # ------------------------------------------------------------
-# Disease Risk Prediction Using KNN & Naive Bayes (Natural Best K = 7)
+# Heart Disease Risk Prediction Using KNN & Naive Bayes
 # ------------------------------------------------------------
 
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics import accuracy_score, f1_score, roc_curve, auc, classification_report
-from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
 
 # ------------------------------------------------------------
-# 1. LOAD REAL DATA
+# 1. LOAD DATA
 # ------------------------------------------------------------
 
 url = "https://raw.githubusercontent.com/lukaskris/data-science-heart-disease-prediction/main/heart.csv"
-raw = pd.read_csv(url)
-
-data = pd.DataFrame()
-data["Age"] = raw["Age"]
-data["BP"] = raw["RestingBP"]
-data["HeartRate"] = raw["MaxHR"]
-data["Fever"] = raw["FastingBS"]
-data["Cough"] = (raw["ExerciseAngina"] == "Y").astype(int)
+data = pd.read_csv(url)
 
 # ------------------------------------------------------------
-# 2. CREATE RISK USING 7 CLUSTERS (GUARANTEES BEST K = 7)
+# 2. PREPROCESS FEATURES
 # ------------------------------------------------------------
 
-features_for_cluster = data[["Age", "BP", "HeartRate", "Fever", "Cough"]]
+# Convert categorical ExerciseAngina to numeric
+data["ExerciseAngina"] = (data["ExerciseAngina"] == "Y").astype(int)
 
-kmeans = KMeans(n_clusters=7, random_state=42)
-cluster_labels = kmeans.fit_predict(features_for_cluster)
+# Select features
+X = data[["Age", "RestingBP", "MaxHR", "FastingBS", "ExerciseAngina"]]
 
-# Convert cluster label into binary risk (even = low, odd = high)
-data["Risk"] = (cluster_labels % 2).astype(int)
-
-print("Dataset head:\n", data.head())
+# Target
+y = data["HeartDisease"]
 
 # ------------------------------------------------------------
 # 3. TRAIN-TEST SPLIT
 # ------------------------------------------------------------
 
-X = data.drop("Risk", axis=1)
-y = data["Risk"]
-
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.3, random_state=42
+    X, y,
+    test_size=0.2,
+    random_state=42,
+    stratify=y
 )
 
 # ------------------------------------------------------------
-# 4. SCALING FOR KNN
+# 4. SCALING (for KNN)
 # ------------------------------------------------------------
 
 scaler = StandardScaler()
@@ -60,27 +51,26 @@ X_train_scaled = scaler.fit_transform(X_train)
 X_test_scaled = scaler.transform(X_test)
 
 # ------------------------------------------------------------
-# 5. FIND BEST K (1–20)
+# 5. FIND BEST K USING CROSS-VALIDATION
 # ------------------------------------------------------------
 
 k_values = range(1, 21)
-accuracy_scores = []
+cv_scores = []
 
 for k in k_values:
     knn = KNeighborsClassifier(n_neighbors=k)
-    knn.fit(X_train_scaled, y_train)
-    y_pred = knn.predict(X_test_scaled)
-    accuracy_scores.append(accuracy_score(y_test, y_pred))
+    scores = cross_val_score(knn, X_train_scaled, y_train, cv=5)
+    cv_scores.append(scores.mean())
 
-plt.plot(k_values, accuracy_scores, marker='o')
-plt.title("Accuracy vs K Value")
+best_k = k_values[np.argmax(cv_scores)]
+print("Best K Value:", best_k)
+
+plt.plot(k_values, cv_scores, marker='o')
+plt.title("Cross-Validation Accuracy vs K")
 plt.xlabel("K")
-plt.ylabel("Accuracy")
+plt.ylabel("CV Accuracy")
 plt.grid(True)
 plt.show()
-
-best_k = k_values[np.argmax(accuracy_scores)]
-print("\nBest K Value:", best_k)
 
 # ------------------------------------------------------------
 # 6. TRAIN FINAL KNN MODEL
@@ -90,11 +80,11 @@ knn_final = KNeighborsClassifier(n_neighbors=best_k)
 knn_final.fit(X_train_scaled, y_train)
 y_knn_pred = knn_final.predict(X_test_scaled)
 
-print("\nKNN Classification Report:\n", classification_report(y_test, y_knn_pred))
-
 knn_accuracy = accuracy_score(y_test, y_knn_pred)
 knn_f1 = f1_score(y_test, y_knn_pred)
 
+print("\nKNN Classification Report:\n")
+print(classification_report(y_test, y_knn_pred))
 print("KNN Accuracy:", knn_accuracy)
 print("KNN F1 Score:", knn_f1)
 
@@ -111,11 +101,11 @@ nb = GaussianNB()
 nb.fit(X_train, y_train)
 y_nb_pred = nb.predict(X_test)
 
-print("\nNaive Bayes Classification Report:\n", classification_report(y_test, y_nb_pred))
-
 nb_accuracy = accuracy_score(y_test, y_nb_pred)
 nb_f1 = f1_score(y_test, y_nb_pred)
 
+print("\nNaive Bayes Classification Report:\n")
+print(classification_report(y_test, y_nb_pred))
 print("NB Accuracy:", nb_accuracy)
 print("NB F1 Score:", nb_f1)
 
@@ -133,13 +123,13 @@ plt.plot(fpr_nb, tpr_nb, label=f"NB AUC = {auc_nb:.2f}")
 plt.plot([0, 1], [0, 1], 'k--')
 plt.xlabel("False Positive Rate")
 plt.ylabel("True Positive Rate")
-plt.title("ROC Curve Comparison: KNN vs Naive Bayes")
+plt.title("ROC Curve Comparison")
 plt.legend()
 plt.grid(True)
 plt.show()
 
 # ------------------------------------------------------------
-# 9. MODEL COMPARISON TABLE
+# 9. MODEL COMPARISON
 # ------------------------------------------------------------
 
 comparison = pd.DataFrame({
@@ -159,10 +149,10 @@ print(comparison)
 print("\n--- Predict Disease Risk for a New Patient ---")
 
 age = int(input("Enter Age: "))
-bp = int(input("Enter Blood Pressure: "))
-hr = int(input("Enter Heart Rate: "))
-fever = int(input("Fever? (0 = No, 1 = Yes): "))
-cough = int(input("Cough? (0 = No, 1 = Yes): "))
+bp = int(input("Enter Resting Blood Pressure: "))
+hr = int(input("Enter Maximum Heart Rate: "))
+fever = int(input("Fasting Blood Sugar > 120 mg/dl? (0 = No, 1 = Yes): "))
+cough = int(input("Exercise-Induced Angina? (0 = No, 1 = Yes): "))
 
 user_data = np.array([[age, bp, hr, fever, cough]])
 user_data_scaled = scaler.transform(user_data)
