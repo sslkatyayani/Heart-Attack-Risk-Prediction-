@@ -48,9 +48,18 @@ The project uses the **Heart Disease dataset** from GitHub:
 
 ## How to Run the Project
 
-1. Install required libraries:
+-Install required libraries:
 pip install numpy pandas scikit-learn matplotlib
-2.Run the program:
+-Run the program:
 python prediction.py
 
 ## Output
+<img width="557" height="445" alt="Image" src="https://github.com/user-attachments/assets/a69783e6-b647-4c23-ae0f-8cb77c6fb959" />
+
+<img width="465" height="463" alt="Image" src="https://github.com/user-attachments/assets/5be957aa-6bce-4337-9249-f88727227072" />
+
+<img width="544" height="428" alt="Image" src="https://github.com/user-attachments/assets/9b4247e3-0778-4965-b379-f1ece2eea470" />
+
+<img width="1155" height="296" alt="Image" src="https://github.com/user-attachments/assets/e3b89cbc-f31a-4f18-81c1-c1a718cb5456" />
+
+
